@@ -1,0 +1,435 @@
+---
+title: "Linear Regression and Modeling Project"
+author: "Jungsun Lee"
+output: html_document
+---
+
+```{r setup}
+library(statsr)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(gridExtra)
+```
+
+# Part1: Data
+According to the code book of this data, it comprised of 651 randomly sampled movies produced and released before 2016.
+
+
+1. Generalizability:When data is randomly sampled, it meets the generalizability condition. As mentioned above,it is randomly sampled therefore, we can generalize a result of study from this data.
+
+2. Causality:If data is randomly assigned, we can conclude causal relationship from a result. However,this is observed data set, not randomly assigned. Therefore, We cannot explain any causal relationship by analyzing this data set.
+
+# Part2: Research Question
+Sometimes I check an audience score before watching a movie to choose it. So it intrigues a question that which parameters affect audience score(audience_score) and whether we can predict audience score from selected parameters.
+
+Some of variables in the data set are only for informational purposes. Therefore, it will be not included in the modeling.
+
+```{r load data}
+load("/cloud/project/movies.Rdata")
+head(movies)
+```
+
+```{r }
+names(movies)
+```
+# Part3
+## 1.Explanatory Data Analysis
+This is looking for relation between critics and audience score.
+```{r plot1}
+ggplot(movies)+geom_point(aes(x=critics_score,y=audience_score),color="darkblue")+
+  labs(x='Critics Score',y='Audiance Score')+
+  ggtitle('Relation between critic and audiance score')
+```
+
+We can see positive linear relationship between critic and audience score. 
+
+Audience score is collected  data on Rotten Tomatoes and Imdb rating is Rating on IMDB. The following is shown to see relation between two different rating scores.
+```{r plot2}
+ggplot(movies)+geom_point(aes(x=imdb_rating,y=audience_score),color="darkblue")+
+  labs(x='Imdb rating',y='Audiance Score')+
+  ggtitle('Relation between Imdb rating and audiance score')
+```
+
+It is not surprising to see the result of positive linear relationship between two rating scores. 
+
+Correlation results are following:
+```{r data select}
+moviestest<-movies%>%select("audience_score","imdb_rating","critics_score","best_pic_nom","best_actor_win","best_actress_win","top200_box","genre")
+
+ggpairs(moviestest,columns = 1:3)
+```
+
+Three variables are highly correlated. In particularly, rating from audience and imdb shows higher correlation than its relation with critics. (collinearity)
+
+We have seen numerical variables so far, the below is considering relation between categorical variables and audience scores.
+
+First, we can assume there is relation between Oscar nominated movies and audience score. 
+```{r plot3}
+ggplot(movies)+geom_boxplot(aes(x=best_pic_nom,y=audience_score))+
+  labs(x='Nominated for a best picture Oscar',y='Audiance Score')+
+  ggtitle('Audiance Score comparision whether best picture nominee or not')
+```
+
+The median of Oscar nominee movies is higher than those are not, and the variability of nominated movies is much narrower than those are non-nominees.
+
+Second variable is to see whether there is any relation between genres and audience scores. 
+
+```{r plot4}
+ggplot(movies)+geom_boxplot(aes(x=genre,y=audience_score))+
+  theme(axis.text.x = element_text(angle=45, hjust=1))+
+  labs(x='Movie Genre',y='Audiance Score')+
+  ggtitle('Audiance Score of different Genre ')
+```
+
+Different genres have varied medians and different distributions.
+
+
+Audience scores might be affected by who direct a movies or who is on a film. 
+```{r plot5}
+p1<-ggplot(movies)+geom_boxplot(aes(x=best_dir_win,y=audience_score))+
+  labs(x='Best director Win',y='Audiance Score')
+p2<-ggplot(movies)+geom_boxplot(aes(x=best_actor_win,y=audience_score))+
+  labs(x='Best actor Win',y='Audiance Score')
+p3<-ggplot(movies)+geom_boxplot(aes(x=best_actress_win,y=audience_score))+
+  labs(x='Best actress Win',y='Audiance Score')
+grid.arrange(p1,p2,p3,nrow=1)
+```
+
+
+Director variable shows difference of median those who win a best director or not. However, actors and actress variables do not show much difference of medians.
+
+## 2. Modeling
+Here, I will use backwards elimination for model selection.
+Backward elimination starts with full model and drop one predictors until reaching parsimonious.  
+There are two criteria for model selection,one of which is choosing based on p-value and other is adjusted $R^2$
+
+- adjusted $R^2$ elimination:pick the model with highest increase in ajusted $R^2$ 
+
+- p-value elimination:drop the variables with the highest p-value
+
+- adjusted $R^2$ is more reliable prediction than p-value which gives significant predictors. 
+
+Here, I will use backward elimination using adjusted $R^2$ criteria
+
+### 2-1 Step1:Full model
+As full model, I include all variables which I analyze explanatory analysis above. Those are Imdb rating, critics score, best picture nominated on Oscar, best actor and actress nominated on Oscar and genres of movies.  
+```{r m}
+mf<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_dir_win+best_actor_win+best_actress_win+top200_box+genre,data=movies)
+summary(mf)
+```
+
+### 2-1 Step2: Exclude top 200
+As mentioned before, adjusted $R^2$ is a criteria for excluding certain variables.
+```{r m1}
+m1<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_dir_win+best_actor_win+best_actress_win+genre,data=movies)
+summary(m1)
+
+```
+
+### 2-1 Step2:Exclude best director win
+```{r m11}
+m11<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_actor_win+best_actress_win+top200_box+genre,data=movies)
+summary(m11)
+```
+
+### 2-1 Step2:Exclude best actor win
+```{r m12}
+m12<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_dir_win+best_actress_win+top200_box+genre,data=movies)
+summary(m12)
+```
+
+### 2-1 Step2:Exclude best actress win
+```{r m13}
+m13<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_dir_win+best_actor_win+top200_box+genre,data=movies)
+summary(m13)
+```
+### 2-1 Step2:Exclude genre
+```{r m14}
+m14<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_dir_win+best_actor_win+best_actress_win+top200_box,data=movies)
+summary(m14)
+```
+
+### 2-1 Step2:Exclude imdb rating
+```{r m15}
+m15<-lm(audience_score~critics_score+best_pic_nom+
+         best_dir_win+best_actor_win+best_actress_win+top200_box+genre,data=movies)
+summary(m15)
+```
+
+### 2-1 Step2:Exclude critics_score
+```{r m16}
+m16<-lm(audience_score~imdb_rating+best_pic_nom+
+         best_dir_win+best_actor_win+best_actress_win+top200_box+genre,data=movies)
+summary(m16)
+```
+### 2-1 Step2:Exclude best picture nominated
+```{r m17}
+m17<-lm(audience_score~imdb_rating+critics_score+
+         best_dir_win+best_actor_win+best_actress_win+top200_box+genre,data=movies)
+summary(m17)
+```
+### 2-1 Step2:Result of compairing adjusted R
+The following data frame show excluded variables and its adjusted R.
+```{r com1}
+ex=list('Full','-top 200','best_dir_win','-best_actor_winyes',
+             '-best_actress_win','-genre','-imdb_rating','-critics_score','-best_pic_nom')
+ad=list(summary(mf)$adj.r.squared,
+          summary(m1)$adj.r.squared,
+          summary(m11)$adj.r.squared,
+          summary(m12)$adj.r.squared,
+          summary(m13)$adj.r.squared,
+          summary(m14)$adj.r.squared,
+          summary(m15)$adj.r.squared,
+          summary(m16)$adj.r.squared,
+          summary(m17)$adj.r.squared)
+
+commodel=data.frame(unlist(ex),unlist(ad))
+colnames(commodel)<-c('Exclude','Adjusted R')
+commodel
+```
+
+```{r max value1}
+commodel[which.max(commodel$`Adjusted R`),]
+```
+The highest adjusted R is a model without top 200. Therefore, the following models progress without top 200 variable.
+
+### 2-1 Step3:Exclude top200 ,best director win
+```{r m2}
+m2<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_actor_win+best_actress_win+genre,data=movies)
+summary(m2)
+```
+### 2-1 Step3:Exclude top200 ,best actor win
+```{r m21}
+m21<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_dir_win+best_actress_win+genre,data=movies)
+summary(m21)
+```
+### 2-1 Step3:Exclude top200 ,best actress win
+```{r m22}
+m22<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_dir_win+best_actor_win+genre,data=movies)
+summary(m22)
+```
+### 2-1 Step3:Exclude top200 ,genre
+```{r m23}
+m23<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_dir_win+best_actor_win+best_actress_win,data=movies)
+summary(m23)
+```
+### 2-1 Step3:Exclude top200 ,Imdb rating
+```{r m24}
+m24<-lm(audience_score~critics_score+best_pic_nom+
+         best_dir_win+best_actor_win+best_actress_win+genre,data=movies)
+summary(m24)
+```
+### 2-1 Step3:Exclude top200 ,critics score
+```{r m25}
+m25<-lm(audience_score~imdb_rating+best_pic_nom+
+         best_dir_win+best_actor_win+best_actress_win+genre,data=movies)
+summary(m25)
+```
+### 2-1 Step3:Exclude top200 ,best picture nominate
+```{r m26}
+m26<-lm(audience_score~imdb_rating+critics_score+
+         best_dir_win+best_actor_win+best_actress_win+genre,data=movies)
+summary(m26)
+```
+
+### 2-1 Step3:Result of comparing adjusted $R^2$
+
+Next table shows which one is the highest adjusted R model. 
+```{r com2}
+ex2=list('-top 200','-top 200&best_dir_win',
+        '-top 200&best_actor_winyes',
+        '-top 200&best_actress_win',
+        '-top 200&-genre','-top 200&-imdb_rating',
+        '-top 200&critics_score',
+        '-top 200&best_pic_nom')
+ad2=list(summary(m1)$adj.r.squared,
+          summary(m2)$adj.r.squared,
+          summary(m21)$adj.r.squared,
+          summary(m22)$adj.r.squared,
+          summary(m23)$adj.r.squared,
+          summary(m24)$adj.r.squared,
+          summary(m25)$adj.r.squared,
+          summary(m26)$adj.r.squared)
+
+commodel2=data.frame(unlist(ex2),unlist(ad2))
+colnames(commodel2)<-c('Exclude','Adjusted R')
+commodel2
+```
+
+```{r max value2}
+commodel2[which.max(commodel2$`Adjusted R`),]
+```
+### 2-1 Step4:Exclude top200 ,best director win,best actor win 
+```{r m3}
+m3<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_actress_win+genre,data=movies)
+summary(m3)
+```
+### 2-1 Step4:Exclude top200 ,best director win,best actress win
+```{r m31}
+m31<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_actor_win+genre,data=movies)
+summary(m31)
+```
+### 2-1 Step4:Exclude top200 ,best director win,genre
+```{r m32}
+m32<-lm(audience_score~imdb_rating+critics_score+best_pic_nom+
+         best_actor_win+best_actress_win,data=movies)
+summary(m32)
+```
+### 2-1 Step4:Exclude top200 ,best director win,imdb rating
+```{r m33}
+m33<-lm(audience_score~critics_score+best_pic_nom+
+         best_actor_win+best_actress_win+genre,data=movies)
+summary(m33)
+```
+
+### 2-1 Step4:Exclude top200 ,best director win,critics score
+```{r m34}
+m34<-lm(audience_score~imdb_rating+best_pic_nom+
+         best_actor_win+best_actress_win+genre,data=movies)
+summary(m34)
+```
+### 2-1 Step4:Exclude top200 ,best director win,best picture nominate
+```{r m35}
+m35<-lm(audience_score~imdb_rating+critics_score+
+         best_actor_win+best_actress_win+genre,data=movies)
+summary(m35)
+```
+
+### 2-1 Step4: Result of comparing adjusted $R^2$
+
+Dropping more variables after excluding top 200 and best director variables do not increase adjusted R. Hence, the best model is the one without top 200 and best director variables.
+```{r com3}
+ex3=list('-top 200&best_dir_win',
+        '-top200 ,best director win,best actor win',
+        '-top200 ,best_dir_win,best_actress_win',
+        '-top200 ,best_dir_win,genre',
+        'top200 ,best director win,imdb rating',
+        'top200 ,best director win,critics score',
+        'top200 ,best director win,best picture nom')
+
+ad3=list(summary(m2)$adj.r.squared,
+         summary(m3)$adj.r.squared,
+         summary(m31)$adj.r.squared,
+         summary(m32)$adj.r.squared,
+         summary(m33)$adj.r.squared,
+         summary(m34)$adj.r.squared,
+         summary(m35)$adj.r.squared)
+
+commodel3=data.frame(unlist(ex3),unlist(ad3))
+colnames(commodel3)<-c('Exclude','Adjusted R')
+commodel3
+```
+
+```{r max value3}
+commodel3[which.max(commodel3$`Adjusted R`),]
+```
+
+From the comparison of adjusted $R^2$, model without top200 box office and best director win variables has the highest adjusted $R^2$,which means that we cannot yield adjusted $R^2$ by dropping more variables from the model. Therefore, selected model is parsimonious model.
+
+### 2-2 Model diagnostics
+#### 1) Linear relationship between numerical variable x and y
+There are two numerical variable in the model which are critics scores and imbd rating. The following graphs show each explanatory variable linearly related to the response variable.
+
+```{r plot6}
+critic_res<-data.frame(residual=m2$residuals,critic=movies$critics_score)
+ggplot(critic_res)+geom_point(aes(x=critic,y=residual))+
+  geom_hline(yintercept = 0,color='darkred')+
+  labs(x='Critic Score',y='Residuals')
+```
+
+```{r plot7}
+imdb_res<-data.frame(residual=m1$residuals,imdb=moviestest$imdb_rating)
+ggplot(imdb_res)+geom_point(aes(x=imdb,y=residual))+
+  geom_hline(yintercept = 0,color='darkred')+
+  labs(x='Imdb Score',y='Residuals')
+```
+
+We can see that the residuals are distributed randomly scattered around 0,so it meets linearity condition.
+
+#### 2) Nearly normal residuals with mean 0
+The following graphs are checking nomarlity of residuals.
+
+```{r plot8}
+ggplot(m2)+geom_histogram(aes(x=.resid))+
+  labs(x='Residuals')+ggtitle('Histogram of residuals')->p4
+
+ggplot(m2,aes(sample=.resid))+
+  ggtitle('Normal probability plot of residuals')+stat_qq()+
+  stat_qq_line()->p5
+
+grid.arrange(p4,p5,nrow=1)
+```
+
+The histogram plot shows residuals are centered at 0, and qq plot shows normal probability.
+
+#### 3) Constant variability of residuals
+Residuals should be equally variable for low and high values of predicted response variables.  To check these condition, here create a scatter plot of model residuals and fitted values. Moreover, it shows absolute residuals vs fitted values to identify unusual observation.
+
+```{r plot9}
+ggplot(m2, aes(x = .fitted, y = .resid)) + geom_point()+
+  geom_hline(yintercept = 0,color='darkred')+
+  labs(x='Fitted',y='Residuals')+
+  ggtitle('Residual vs Fitted')
+```
+```{r plot10}
+ggplot(m2, aes(x = .fitted, y = abs(.resid))) + geom_point()+
+  geom_hline(yintercept = 0,color='darkred')+
+  labs(x='Fitted',y='Residuals')+
+  ggtitle('Residual vs Fitted')
+```
+
+Residuals randomly scatters in a constant band with around 0 but shows relatively high positive residuals when the fitted values are lower than 25. We cannot see any shapes such as fan shapes between fitted and residual values plots. Therefore, we can say it meets constant residual variability condition.
+
+#### 4) Independent Residuals
+Observations are randomly selected which means it is independent. 
+The below graph shows residuals vs observation.
+```{r plot11}
+plot(m2$residuals,ylab = 'Residuals',cex=0.5,col='blue',
+     main='Residuals, Observation')
+abline(h=0,col='darkred')
+```
+
+### 2-3 Interpretation of model coefficients 
+
+- Adjusted R-squared: model has an  adjusted $R^2$  of 0.766, meaning that 76.6% of the variability in data is explained by the model
+
+- Intercept: we have an intercept of -36.56306, it means 0 score of critic score and imbd rating is expected -36.56306 audiance score. Intercept of regression does not include significant meaning yet important. 
+
+- imdb_rating: slope for imdb rating is 14.70954 , which means for every unit of imdb rating increased, we would expect the audience score to increase by 14.70954 units.
+
+- critics score:slope for critics score is 0.06511 , which means for every unit of critics score increased, we would expect the audience score to increase by 0.06511 units.
+
+- best picture nomination on Oscar: if a movie was nominated for a best picture Oscar, it would be expected to have 4.14400 more units on audience score
+
+- best actor winner on Oscar:if a actor was wined for a best actor on Oscar, it would be expected to have -1.64506 more units on audience score.
+
+- best actress winner on Oscar:if a actress was wined for a best actress on Oscar, it would be expected to have --2.25269 more units on audience score.
+
+- genre:we can expect different audience score depend on genre if the other variables are the same. Animation movies are expected to 9.38432 higher unit on audience score. 
+
+## Prediction
+
+First, set a new observation then predict based on created variables.
+New observation is the 2019 movie Toy story4 collected from rottentomatoes.
+```{r prediction}
+newobs<-data.frame(imdb_rating=7.8,critics_score=97,best_pic_nom='no',best_actor_win='no',best_actress_win='no',genre='Animation')
+
+predict(m2,newobs,interval = "prediction", level = 0.95)
+```
+Estimation of audience score is 93.87136 and it has lower and upper score inter (73.55344 ,114.1893). It does not make sense to have over 100. Therefore we can say the interval of audience score would be (73.55344 ,100). We can interpret  with 95% confidence, a movie with imdb rating of 7.8,critics score of 97, the genre of "Animation" and no best picture,actor and actress Oscar nomination is expected to have an audience score between 73.6 and 100. Real audience score is 94, which is close our prediction.
+
+## Conclusion
+We conduct linear regression model to find meaningful variables and predict response variable. Audience scores are linear relationship with critic scores and imbd ratings. For categorical variables, best piture , actor and actress nomination on Oscar and genre of movies are included in the formula. Variables selected based on adjusted $R^2$ so it gives prediction value close to real one. To increase better prediction, we could add more explanatory variables on the data set such as mpaa rating and critic rating. 
