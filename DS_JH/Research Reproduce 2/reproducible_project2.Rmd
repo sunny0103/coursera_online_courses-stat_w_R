@@ -1,0 +1,146 @@
+---
+title: "Reproducible project2"
+author: "Jungsun Lee"
+date: '2020 12 20 '
+output: html_document
+---
+# Synopsis
+This is a course project from Jonhs Hopkins's Data science specilazation. The questions of this assignment are following:
+1.Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+2.Across the United States, which types of events have the greatest economic consequences?
+The data is about damages from storms and severe weather in the US both economic and human lives cost. 
+The questions are most bad consequences in health and economy so I will show top 10 types of events for each cases. 
+```{r, eco=FALSE}
+Sys.setlocale("LC_ALL", "English")
+```
+```{r }
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+# Data loading 
+
+```{r data downloading}
+url<-'https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2'
+download.file(url,destfile ='repdata%2Fdata%2FStormData.csv.bz2')
+stormdf<-read.csv('repdata%2Fdata%2FStormData.csv.bz2')
+dim(stormdf)
+```
+
+# Data processing
+
+## 1. Examine data name
+
+```{r data name}
+colnames(stormdf)
+```
+
+## 2. Data Subset
+Here, subset the data for question 1 which asks most harmful types of events in population health.
+
+```{r data subset 1}
+# select the data
+stormdf%>%select(EVTYPE,FATALITIES,INJURIES)->health 
+
+# check the class type
+str(health) 
+
+ #change the class type to numeric
+as.numeric(health$FATALITIES)->health$FATALITIES
+as.numeric(health$INJURIES)->health$INJURIES 
+```
+
+Next, subset the data for question 2 which is types of events brought greatest damage to economy in US.
+
+```{r data subset 2-1}
+# select the data
+stormdf%>%select(EVTYPE,PROPDMG,PROPDMGEXP,CROPDMG,CROPDMGEXP)->econ
+as.numeric(econ$PROPDMG)->econ$PROPDMG
+as.numeric(econ$CROPDMG)->econ$CROPDMG
+str(econ)
+```
+
+Economic damages are divided into Property damages and Crop damages and those have damage amount and its exponents.It needs to convert exponent columns to actual exponents 
+
+```{r data subset 2-2}
+table(econ$PROPDMGEXP)
+table(econ$CROPDMGEXP)
+
+econ%>%mutate(prop=ifelse(PROPDMGEXP=="-",PROPDMG* 10^0,
+                 ifelse(PROPDMGEXP=="?", PROPDMG*10^0,
+                 ifelse(PROPDMGEXP=="+", PROPDMG*10^0,
+                 ifelse(PROPDMGEXP=="0", PROPDMG*10^0,
+                 ifelse(PROPDMGEXP=="1", PROPDMG*10^1,
+                 ifelse(PROPDMGEXP=="2", PROPDMG*10^2,
+                 ifelse(PROPDMGEXP=="3", PROPDMG*10^3,
+                 ifelse(PROPDMGEXP=="4", PROPDMG*10^4,
+                 ifelse(PROPDMGEXP=="5", PROPDMG*10^3,
+                 ifelse(PROPDMGEXP=="6", PROPDMG*10^6,
+                 ifelse(PROPDMGEXP=="7", PROPDMG*10^7,
+                 ifelse(PROPDMGEXP=="8", PROPDMG*10^8,
+                 ifelse(PROPDMGEXP=="H", PROPDMG*10^2,
+                 ifelse(PROPDMGEXP=="h", PROPDMG*10^2,
+                 ifelse(PROPDMGEXP=="K", PROPDMG*10^3,
+                 ifelse(PROPDMGEXP=="M", PROPDMG*10^6,
+                 ifelse(PROPDMGEXP=="m", PROPDMG*10^6,
+                 ifelse(PROPDMGEXP=="B", PROPDMG*10^9,0)))))))))))))))))))->econ
+
+              
+econ%>%mutate(crop=ifelse(CROPDMGEXP=="",CROPDMG*10^0,
+          ifelse(CROPDMGEXP=="?",CROPDMG*10^0,
+          ifelse(CROPDMGEXP=="0", CROPDMG*10^0,
+          ifelse(CROPDMGEXP=="2", CROPDMG*10^2,
+          ifelse(CROPDMGEXP=="k", CROPDMG*10^3,
+          ifelse(CROPDMGEXP=="K", CROPDMG*10^3,
+          ifelse(CROPDMGEXP=="M", CROPDMG*10^6,
+          ifelse(CROPDMGEXP=="m", CROPDMG*10^6,
+          ifelse(CROPDMGEXP=="B", CROPDMG*10^9,0))))))))))->econ
+
+head(econ)
+
+```
+
+
+## 3. Calculating columns
+
+calculating total numbers of fatality and injuries of each type of events 
+```{r h}
+health%>%group_by(EVTYPE)%>%summarise(fatality=sum(FATALITIES,na.rm = TRUE),injuries=sum(INJURIES,na.rm = TRUE))%>%
+  arrange(desc(fatality,injuries))->h
+head(h)
+```
+
+calculating total amounts of damages of properties and crops by events
+```{r e}
+econ%>%select(EVTYPE,prop,crop)%>%group_by(EVTYPE)%>%
+  summarise(propdamage=sum(prop,na.rm = TRUE),cropdamage=sum(crop,na.rm = TRUE))%>%
+  arrange(desc(propdamage,cropdamage))->econdamage
+head(econdamage)
+```
+
+# Result
+
+## 1.The 10 most harmful to population health
+making tidy data by selecting 10 most harmful events
+```{r tidyh}
+h%>%filter(row_number()<=10)%>%gather(key="harmful_health",value='total number',-EVTYPE)->tidyh
+```
+
+```{r plot1}
+ggplot(tidyh)+geom_bar(stat = 'identity',aes(x=reorder(EVTYPE,-`total number`),y=`total number`,fill=harmful_health ), position="dodge")+
+  theme(axis.text.x = element_text(angle=45, hjust=1))+labs(x='Types of Events',y='Total number')+
+  ggtitle('The top 10 most harmful types of event in health ')
+```
+
+## 2. 10 Greatest econimic damages
+making tidy data
+```{r tidye}
+econdamage%>%filter(row_number()<=10)%>%gather(key="DamageInEcon",value='Total Amount',-EVTYPE)->tidye
+```
+
+```{r plot2}
+ggplot(tidye)+geom_bar(stat ='identity',aes(x=reorder(EVTYPE,-`Total Amount`),y=`Total Amount`,fill=DamageInEcon ), position="dodge")+
+                         theme(axis.text.x = element_text(angle=45, hjust=1))+labs(x='Types of Events',y='Total Amount')+
+                         ggtitle('The top 10 most Damaged types of event in Economy')
+```
