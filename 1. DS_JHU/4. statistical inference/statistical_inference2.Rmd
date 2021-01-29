@@ -1,0 +1,66 @@
+---
+title: "Statistical Inference course project part 2"
+author: "Jungsun Lee"
+date: "12/20/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+# Part 2: Basic Inferential Data Analysis Instructions
+The second course instruction is to load ToothGrowth data in R and perform basic exploratory analysis. Moreover, it asks doing confidence intervals and/or hypothesis tests to compare tooth growth by supp and dose.
+The response is the length of tooth growth in Guinea pigs by different two types of vitamin c and doses. 
+
+len:	numeric	Tooth length
+supp:	factor	Supplement type (VC or OJ).
+dose:	numeric	Dose in milligrams/day
+
+## basic explonatory analysis and summary of the data
+```{r load data,eco=FALSE}
+data(ToothGrowth)
+str(ToothGrowth)
+```
+```{r basic}
+summary(ToothGrowth)
+```
+```{r table}
+table(ToothGrowth$supp,ToothGrowth$dose)
+```
+From the above summary result, the average of length of tooth growth is 18.81
+Supplement are divided equally in each dose and vitamin type.
+
+The following plot compares tooth growth length in Guinea pigs by does of different types of vitamin c.  
+```{r plot2}
+ToothGrowth%>%group_by(supp,dose)%>%
+  summarise("mean"=mean(len),'sd'=sd(len))
+ggplot(ToothGrowth)+geom_boxplot(aes(x=as.factor(dose),y=len,fill=supp))+
+  labs(x='Dose(mg/day)',y='Tooth growth length',title='The Effect of Vitamin C on Tooth Growth in Guinea Pigs')
+```
+The more dose of vitamin per day, the longer tooth growth we can expect. 
+Vitamin OJ is much effective to tooth growth than VC especially 0.5 and 1 mg per day.
+However, 2mg dose does not show much distinct difference in mean.
+
+## confidence intervals and/or hypothesis tests 
+```{r  t test1}
+t.test(len~supp,data=subset(ToothGrowth,dose==0.5))
+```
+In dose 0.5, difference of tooth growth means by 2 supplements is not equal to 0. p-value(0.006359) is lower than 95% confidence interval. Confidence interval[1.719057,8.780943]is above 0. 
+```{r  t test2}
+t.test(len~supp,data=subset(ToothGrowth,dose==1))
+```
+Dose 1mg per day also same result as dose 0.5. It rejects the null hypothesis which  difference of tooth growth means by 2 supplements is equal to 0. p-value(0.001038) is lower than 95% confidence interval. Confidence interval[2.802148,9.057852]is above 0. 
+```{r  t test3}
+t.test(len~supp,data=subset(ToothGrowth,dose==2))
+```
+Unlike the other doses, dose 2 mg per day does not show the difference in means by different types of supplements. we cannot reject null hypothesis due to p-value and confidence interval also includes 0.
+```{r  t test4}
+t.test(len~supp,data=ToothGrowth)
+```
+
+## conclusion 
+Results of sample test by different amount of doses shows that we cannot accept the null hypothesis which average length of tooth growth in different vitamin supplements is equal to 0. Test results show lower p-value than 95% significance level and confidence interval does not include 0. Therefore, I can reject the null hypothesis. However, I cannot reject the null hypothesis in does amount 2mg per day which have large p-value and 0 included in confidence interval.
+Moreover, When it comes to not considering supplement doses, I cannot reject the null hypothesis for test results. Its p-value is larger than significance level and confidence interval includes 0.
+Hence, test results can be differ by condition of comparison.
