@@ -41,7 +41,7 @@ Sample Variance versus Theoretical Variance: Include figures (output from R) wit
 Distribution: Via figures and text, explain how one can tell the distribution is approximately normal.
 
 ## Part 2: Basic Inferential Data Analysis Instructions
-이하 
+
 Now in the second portion of the project, we're going to analyze the ToothGrowth data in the R datasets package.
 
 Load the ToothGrowth data and perform some basic exploratory data analyses
