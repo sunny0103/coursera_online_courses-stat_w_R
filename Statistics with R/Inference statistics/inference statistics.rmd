@@ -1,0 +1,259 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+# Introduction
+This is Inferential statistics course project from duke university.
+The requirement is one of them:
+
+1.One numerical and one categorical variable (with only 2 levels):
+hypothesis test + confidence interval parameter of interest = difference between two means (theoretical or simulation)parameter of interest = difference between two medians (simulation only)
+
+2.One numerical and one categorical variable (with more than 2 levels):
+hypothesis test only compare means across several groups no defined parameter of interest, ANOVA and pairwise tests (theoretical only)
+
+3.Two categorical variables (each with only 2 levels):
+hypothesis test + confidence interval parameter of interest = difference between two proportions (theoretical if success-failure condition met, simulation if not)
+
+4.Two categorical variables (either one or both with more than 2 levels):
+hypothesis test only compare proportions across several groups no defined parameter of interest, Chi-square test only (theoretical if expected sample size condition met, simulation if not)
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+```{r download-data,results='hide'}
+url='https://d3c33hcgiwev3.cloudfront.net/_5db435f06000e694f6050a2d43fc7be3_gss.Rdata?Expires=1604102400&Signature=eauxZA9gmRAP2UpvEJmJkkN3nohMPsOYQ~iSdSROtz50J3RXTXzg4kmMgHJcm-AxSc1SPSFwBuXMqnaKuRrYK-PL1zwlIBA1i9jDcdKGzoMe~YcipsXkMba7qT63y9yFE5MRVJvbyZy6iUI~BItXreP94Y~WZ2k7YiXVrzIPEfs_&Key-Pair-Id=APKAJLTNE6QMUY6HBC5A'
+
+download.file(url,destfile = 'gss.RData',mode = "wb")
+```
+
+```{r load-data}
+load("gss.RData")
+dim(gss)
+```
+
+* * *
+# part 1. Inflation-adjusted family income comparision based on citizenship status
+
+## 1.1 Data 
+
+From the explanation of abstract for the [survey](https://d3c33hcgiwev3.cloudfront.net/_8abbe344133a7a8c98cfabe01a5075c2_gss.html?Expires=1603929600&Signature=KQ1B4cvAOGaBtCvTz9d9l05L0-iBzXyPot4~CcM00WOq75nLHMPtFLC26q4JXQZri2NLxcHGmfBy~AneYPPzll~uOwZcyOWntsy8v7jHtO6bxKTAXP8jHlgUsneZ2HRWDMWa942KaRjnya0MoQetvO1fZriHPWOzVPQi30LEDYE_&Key-Pair-Id=APKAJLTNE6QMUY6HBC5A), it gathers data on contemporary American society. Data was collected by random sampling and it did not assigned random. Therefore we can generalize the conclusion but cannot deduce causality from our results.
+The observed data is 57061 from 1972 to 2012, which is less than 10% from the population. 
+
+* * *
+
+## 1.2 Research question
+whether having a U.S citizenship or not affects people's family income level is  a question of this research.
+U.S is one of countries consistuted by many immigrants and it still accepts lots of immigrants even thought the proportion of acceptance has been reduced. Those who starts their life in the U.S may have not received citizenship yet or some may work for companies transferred to the U.S. Here, I compare income levels of those who have citizenship or not. 
+
+* Variables
+  * uscitzn:respondents background variable about their citizenship and born in island or outside of US
+  * coninc:Total family income in constant dollars
+
+* * *
+
+## 1.3 Exploratory data analysis
+
+select the data from the raw
+```{r filter data}
+citzn<-gss %>%
+  filter(!is.na(uscitzn) & !is.na(coninc)) %>%
+  select(uscitzn,coninc)
+```
+
+* reducing length of factor name 
+
+  * A U.S. Citizen Born In Puerto Rico, The U.S. Virgin Islands, Or The Northern Marianas Island ->Born Island
+
+  * Born Outside Of The United States To Parents Who Were U.S Citizens At That Time (If Volunteered) ->Born Outside
+  
+```{r simplyfing name of data}
+citzn<-transform(citzn,
+                 uscitzn=sub("A U.S. Citizen Born In Puerto Rico, The U.S. Virgin Islands, Or The Northern Marianas Island","Born Island",uscitzn))
+citzn<-within(citzn,{uscitzn<-ifelse(uscitzn=="Born Outside Of The United States To Parents Who Were U.S Citizens At That Time (If Volunteered)","Born Outside",uscitzn)})
+```
+summary of the data
+```{r summarize}
+citzn%>%group_by(uscitzn)%>%summarize(m=mean(coninc),sd=sd(coninc),n=n())
+```
+```{r plot summary}
+ggplot(citzn,aes(x=uscitzn,y=coninc,group=uscitzn))+geom_boxplot(aes(fill=uscitzn))+xlab('state of citizenship')+ylab('inflation-adjusted family income')
+```
+
+* Finding:
+
+  * All of the plots are right skewed
+
+  * People born outside of the U.S and inside have similar levels of family income but the others are relatively lower level compared those two.
+
+  * Respondents born outside are more dispersed than other groups. 
+
+Here, to conduct comparison only US citizen and Not citizen, I extracted data only those two groups. People born islands and outside are also U.S citizen.However, this gss survey treats them as different groups so these groups are not included for comparison as the U.S citizen.
+```{r filter citizen or not}
+ctz<-citzn%>%filter(uscitzn=='A U.S. Citizen'|uscitzn=='Not A U.S. Citizen')
+```
+```{r plot normality}
+usct<-ctz%>%filter(uscitzn=='A U.S. Citizen')
+notcz<-ctz%>%filter(uscitzn=='Not A U.S. Citizen')
+
+par(mfrow=c(1,2))
+qqnorm(usct$coninc,pch=1,main='A U.S. Citizen');qqline(usct$coninc,col="blue",lwd=2)
+qqnorm(notcz$coninc,pch=1,main='Not A U.S. Citizen');qqline(notcz$coninc,col="blue",lwd=2)
+```
+
+As we have seen in the boxplot, the above graphs are to show whether the data have the normality 
+
+* Finding:
+
+  * Both groups show skewness particulary upper quantiles.
+
+* * *
+
+## 1.4 Inference
+
+* Condition:
+
+  * Independence: the survey data are random extraction and it is less than 10 % of the population. Comparision groups are independent of each other. Therefore, it meets the independence condition
+
+  * sample size and skew: We don't know whether the population distribution skewed or not. but sample sizes are large enough to perform test.(us citizen:315, not us citizen:329)
+
+* Hypothesis test
+
+  * Null: The average family income levels are same for different citizenship
+
+  * Alternative: Family income are different based on their citizenship
+
+The following estimation shows confidence interval of difference between two groups
+```{r}
+inference(y=coninc,x=uscitzn,data=ctz,type="ci",statistic = 'mean',
+          method='theoretical',conf_level = 0.95)
+```
+
+* Finding:
+
+  * 95% confidence interval ranges (11146.4694 , 24987.9959)
+
+  * the plot shows difference family income average based on their citizenship. 
+
+The following shows a result of hypothesis test
+```{r}
+inference(y=coninc,x=uscitzn,data=ctz,type="ht",statistic = 'mean',
+          method='theoretical',alternative = 'twosided',null=0)
+```
+
+* Finding:
+As we saw already, people who have citizenship in the U.S have different family income level compared with those who are not. 
+It rejects the null hypothesis which sets same level of income between citizen and none-citizen groups. This result agrees with confidence interval.
+
+
+* * *
+# part 2. comparision confidence in Bank and financial institution by income level and time
+
+## 2.1 Data 
+* Variable
+  * coninc:Inflation-adjusted family income.
+  * confinan:CONFID IN BANKS & FINANCIAL INSTITUTIONS
+  
+* * *
+## 2.2 Research question
+The U.S subprime mortgage crisis occurred from 2007 to 2010 and affected tremendous financial damage not only in their soil but also other countries.
+This study will examine whether the confidence in Bank and financial institutions has changed after the crisis. The cause of crisis pointed out greedy of financial body and Insufficient regulation to control them.
+The year data  is only available from 2008 to 2012 every 2 years. Therefore, it only compares three years of data. Financial data divide into 3 as lower, middle and upper to compare difference of confidence based on their income level. 
+
+* * *
+## 2.3 Exploratory data analysis
+
+making subset of data from the raw
+```{r}
+conf<-gss%>%filter(!is.na(coninc)&!is.na(confinan)&year>=2007)%>%select(year,coninc,confinan)
+t<-table(conf$year,conf$confinan)
+t
+```
+```{r}
+plot(t,col=c("blue","purple","red"),main="confidence in bank and financial institution by time")
+```
+* Finding
+The most of part takes in Only some of confidence in bank in every 2 year data and Hardly Any increases in 2010 then reduces a little in 2012. On the other hand, a Great deal in confidence reduces as time by. 
+
+Split the data by year and divides class by income level
+```{r}
+conf08<-conf%>%filter(year==2008)
+conf08$class<-cut(conf08$coninc,breaks = 3,labels = c('lower','middle','upper'))
+table(conf08$class,conf08$confinan)
+
+conf10<-conf%>%filter(year==2010)
+conf10$class<-cut(conf10$coninc,breaks = 3,labels = c('lower','middle','upper'))
+table(conf10$class,conf10$confinan)
+
+conf12<-conf%>%filter(year==2012)
+conf12$class<-cut(conf12$coninc,breaks = 3,labels = c('lower','middle','upper'))
+table(conf12$class,conf12$confinan)
+```
+
+Merge the above split data
+```{r}
+reconf<-rbind(conf08,conf10)
+reconf<-rbind(reconf,conf12)
+table(reconf$class,reconf$confinan)
+```
+
+plot the confidence by each class
+```{r}
+ggplot(data = reconf,aes(x=class))+geom_bar(aes(fill=confinan),position="dodge")+ theme(axis.text.x = element_text(angle=60,hjust = 1))
+```
+
+plot the confidence in every 2 year to detect the difference in years. 
+```{r}
+ggplot(data=reconf,aes(x=class))+geom_bar(aes(fill=confinan),position="dodge")+ theme(axis.text.x = element_text(angle=60,hjust = 1))+facet_wrap(~year)
+```
+
+*Findings:
+  * It compares number of counts not the proportion of the data therefore, it is hard to compare it by years.
+  * However, It shows Only some degree in confidence takes the largest part in every class in all years.
+  * Hardly any increases in lower class in particular.
+
+* * *
+## 2.4 Inference
+
+* Condition:
+
+  * Independence: the survey data are random extraction and it is less than 10 % of the population. Each case only contributes to one cell in the table
+
+  * sample size: Each particular cell has at least 5 expected cases 
+
+* Hypothesis test
+
+  * Null: Income level and confidence in Bank and financial institution are independent.
+
+  * Alternative: Income level and confidence in Bank and financial institution are dependent. 
+
+```{r}
+chisq.test(reconf$class,reconf$confinan)$expected
+chisq.test(reconf$class,reconf$confinan)
+```
+* Hypothesis test
+
+  * Null: Confidence degree independent with years
+  * Alternative: Confidence levels dependent with year.
+
+```{r}
+chisq.test(reconf$year,reconf$confinan)$expected
+chisq.test(reconf$year,reconf$confinan)
+```
+* Findings:
+  * Both of test reject the null hypothesis. 
+  * From the first test, we do not have enough confidence to prove their is independence relationship between income levels and confidence in Banks and Financial institutions. 
+  * Same as the first test, the second test also rejects the null which shows confidence in banks and its levels in years after the crisis are not independent. 
+  
+These tests does not gives evidences whether the financial crisis were triggered changes of confidence in financial bodies in all class groups.
