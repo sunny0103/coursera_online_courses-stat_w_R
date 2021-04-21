@@ -1,1 +1,12 @@
 
+week5
+question 2.
+select brand ,size,color
+from skuinfo
+where brand='polo fas' and (size='XXL' or color='black');
+
+question 3.
+select str.store, str.city, str.state,df.months,df.years
+from(select store, saledate, extract(month from saledate) as months, extract(year from saledate) as yearsfrom trnsact) as df join strinfo stron df.store=str.store
+GROUP BY str.city,str.state,str.store,df.months,df.years
+HAVING COUNT(DISTINCT df.saledate)=11;
