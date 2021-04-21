@@ -1,5 +1,40 @@
 
 week5
+
+Exercise
+question 2.
+SELECT sku,SUM(amt)
+FROM trnsact
+WHERE stype='P' AND (EXTRACT(MONTH from saledate)=6 OR EXTRACT(MONTH from saledate)=7 OR EXTRACT(MONTH from saledate)=8)
+GROUP BY sku
+ORDER BY 2 DESC;
+
+question 3.
+select df.store,df.yr,df.mon,count(distinct df.d) as numofday
+from(select store, extract(month from saledate) as mon, extract(year from saledate) as yr,extract(day from saledate) as d
+from trnsact) as df
+group by df.mon, df.yr,df.store
+order by numofday asc;
+
+question 4-1.
+select df.store, df.yr,df.mon,sum(df.amt),sum(df.amt)/count(distinct saledate) 
+from(select store, stype,amt,extract(month from saledate) as mon, extract(year from saledate) as yr,saledate
+from trnsact) as df
+where df.stype='p'
+group by df.store, df.yr,df.mon
+order by df.store;
+
+question 4-2. (removing 2005/8 and having more then 20 sales date)
+select df.store, df.yr,df.mon,sum(df.amt),sum(df.amt)/count(distinct saledate) 
+from(select store, stype,amt,extract(month from saledate) as mon, extract(year from saledate) as yr,saledate
+from trnsact) as df
+where df.stype='p' and not(df.mon=8 and df.yr=2005)
+group by df.store, df.yr,df.mon
+having count(distinct saledate)>=20
+order by df.store
+
+
+
 question 2.
 select brand ,size,color
 from skuinfo
