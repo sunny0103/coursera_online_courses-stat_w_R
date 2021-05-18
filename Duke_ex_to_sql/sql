@@ -1,7 +1,9 @@
 
-week5
 
+week5
+==================================================================================================================================
 Exercise
+==================================================================================================================================
 question 2.
 SELECT sku,SUM(amt)
 FROM trnsact
@@ -33,8 +35,32 @@ group by df.store, df.yr,df.mon
 having count(distinct saledate)>=20
 order by df.store
 
+question 5
+SELECT store,  
+case when(msa_high>70) then 'high'
+     when(msa_high>60) then 'medium'
+     when(msa_high>50) then 'low' 
+     else 'very low' end
+FROM store_msa;
+
+select msa.ranking,sum(stores.rev)/sum(stores.numdays) as avg_sales
+from(select store, count(distinct saledate)as numdays,sum(amt)as rev
+from trnsact
+where stype='p' 
+group by store) as stores
+join (SELECT store,  
+      case when(msa_high>70) then 'high'
+           when(msa_high>60) then 'medium'
+           when(msa_high>50) then 'low' 
+            else 'very low' end as ranking
+      FROM store_msa)as msa
+on msa.store=stores.store
+group by msa.ranking;
 
 
+=========================================================================================================================
+   quiz 
+=========================================================================================================================
 question 2.
 select brand ,size,color
 from skuinfo
