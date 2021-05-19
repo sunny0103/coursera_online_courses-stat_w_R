@@ -124,6 +124,45 @@ group by yr, mon
 having not(mon=8 and yr=2005)) as t
 order by mon;
 
+question 10
+
+subquery
+* searching top1 store which has greatest percentage sales increase between nov and dec
+select  top 1 td.store as store,
+sum(case when td.mon=11 then td.numdays end) as nov_numdays,
+sum(case when td.mon=12 then td.numdays end) as dec_numdays,
+sum(case when td.mon=11 then td.rev end) as nov_rev,
+sum(case when td.mon=12 then td.rev end)as dec_rev,
+nov_rev/nov_numdays as y,
+dec_rev/dec_numdays as x,
+((x-y)/y)*100 as perc
+from(select store, extract(month from saledate) as mon, extract(year from saledate) as yr,count(distinct saledate) as numdays,sum(amt) as rev
+from trnsact
+where stype='p'
+group by store, yr,mon
+having numdays>=20 and mon in(11,12)) as td
+group by store
+order by perc desc
+
+*answer
+select df.store,msa.city,msa.state,df.perc
+from(select  top 1 td.store as store,
+sum(case when td.mon=11 then td.numdays end) as nov_numdays,
+sum(case when td.mon=12 then td.numdays end) as dec_numdays,
+sum(case when td.mon=11 then td.rev end) as nov_rev,
+sum(case when td.mon=12 then td.rev end)as dec_rev,
+nov_rev/nov_numdays as y,
+dec_rev/dec_numdays as x,
+((x-y)/y)*100 as perc
+from(select store, extract(month from saledate) as mon, extract(year from saledate) as yr,count(distinct saledate) as numdays,sum(amt) as rev
+from trnsact
+where stype='p'
+group by store, yr,mon
+having numdays>=20 and mon in(11,12)) as td
+group by store
+order by perc desc) as df join store_msa as msa
+on msa.store=df.store
+
 =========================================================================================================================
    quiz 
 =========================================================================================================================
