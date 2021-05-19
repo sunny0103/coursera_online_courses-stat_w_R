@@ -57,6 +57,72 @@ join (SELECT store,
 on msa.store=stores.store
 group by msa.ranking;
 
+question 6
+* average daily revenue for highest income
+select distinct t.store as store, high.city as city,high.state as state,high.msa_income as income
+from(select top 1 m.store,m.city,m.state,m.msa_income
+from store_msa m
+order by m.msa_income desc) as high join trnsact t
+on high.store=t.store;
+
+* average daily revenue for lowest income
+select distinct t.store as store, high.city as city,high.state as state,high.msa_income as income
+from(select top 1 m.store,m.city,m.state,m.msa_income
+from store_msa m
+order by m.msa_income ) as high join trnsact t
+on high.store=t.store;
+
+question 7
+select sku,count(distinct saledate) as numdays, stddev_samp(sprice) as std
+from trnsact
+group by sku
+having numdays>100;
+
+* all the result
+select su.brand as brand, su.sku as sk, std_tr.std as sd
+from(select sku,count(distinct saledate) as numdays, stddev_samp(sprice) as std
+from trnsact
+group by sku
+having numdays>100)as std_tr join skuinfo su
+on su.sku=std_tr.sku
+order by sd desc;
+
+* answer the question
+select su.brand as brand, su.sku as sk, std_tr.std as sd
+from(select top 1 sku,count(distinct saledate) as numdays, stddev_samp(sprice) as std
+from trnsact
+group by sku
+having numdays>100
+order by std desc)as std_tr join skuinfo su
+on su.sku=std_tr.sku
+order by sd desc;
+
+question 8
+*without transaction date set
+select t.sku as sku, t.saledate,t.sprice
+from(select top 1 sku,stddev_samp(sprice) as std
+from trnsact
+group by sku
+order by std desc)as s join trnsact t
+on s.sku=t.sku;
+
+*with transaction date over 100 days
+select t.sku as sku, t.saledate,t.sprice
+from(select top 1 sku,stddev_samp(sprice) as std, count(distinct saledate) as numdays
+from trnsact
+group by sku
+having numdays>100
+order by std desc)as s join trnsact t
+on s.sku=t.sku;
+
+question 9
+select t.mon as mon, t.rev/t.numdays as avg_rev
+from(select extract(month from saledate) as mon, extract(year from saledate) as yr, sum(amt) as rev, count(distinct saledate) as numdays
+from trnsact
+where stype='p'
+group by yr, mon
+having not(mon=8 and yr=2005)) as t
+order by mon;
 
 =========================================================================================================================
    quiz 
