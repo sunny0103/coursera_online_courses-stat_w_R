@@ -237,13 +237,76 @@ on df1.sku=df2.sku
 order by diff desc
 
 question5
+* might not right
+select df.sku, s.vendor
+from(select distinct sku
+from trnsact
+where sku not in (select distinct t.sku as sku
+from trnsact t join skstinfo sks
+on t.sku=sks.sku))as df join skuinfo as s
+on df.sku=s.sku
+order by df.sku desc
 
+question 6
+select df.sku as sku, df.std as std, sku.brand as brand
+from(select top 1 sku,stddev_samp(sprice) as std, count(distinct saledate) as numdays
+from trnsact
+where stype='P'
+group by sku
+having numdays>100
+order by std desc)as df join skuinfo sku
+on df.sku=sku.sku
 
+question 7 
+select cdf.store as store, sm.city,sm.state,cdf.change
+from(select top 1 df.store as store, 
+sum(case when df.mon=11 then df.numdays end)as nov_numdays,
+sum(case when df.mon=12 then df.numdays end)as dec_numdays,
+sum(case when df.mon=11 then df.rev end)as nov_rev,
+sum(case when df.mon=12 then df.rev end)as dec_rev,
+nov_rev/nov_numdays as y,
+dec_rev/dec_numdays as x,
+x-y as change
+from(select store, extract(year from saledate) as yr, extract(month from saledate)as mon,count(distinct saledate)as numdays,
+sum(amt)as rev
+from trnsact
+where stype='P'
+group by store,yr,mon
+having numdays>=20 and mon in (11,12))as df
+group by store
+order by change desc)as cdf join store_msa as sm
+on cdf.store=sm.store
 
+question 8
+select top 2 df.store, df.avg_rev,sm.city,sm.state,sm.msa_income
+from(select store, sum(amt)as rev, count(distinct saledate)as numdays,rev/numdays as avg_rev
+from trnsact
+where stype='P'
+group by store)as df join store_msa as sm
+on df.store=sm.store
+order by sm.msa_income desc;
 
+select top 2 df.store, df.avg_rev,sm.city,sm.state,sm.msa_income
+from(select store, sum(amt)as rev, count(distinct saledate)as numdays,rev/numdays as avg_rev
+from trnsact
+where stype='P'
+group by store)as df join store_msa as sm
+on df.store=sm.store
+order by sm.msa_income ;
 
-
-
+question 9
+select df1.store as store,df2.avg_rev as avg_rev,df1.in_label
+from(select store, 
+case when (msa_income>=40001 and msa_income<=60000) then 'high'
+     when (msa_income>=30001 and msa_income<=40000) then 'med-high'
+     when (msa_income>=20001 and msa_income<=30000) then 'med-low'
+     when (msa_income>=1 and msa_income<=20000) then 'low' end as in_label
+from store_msa)as df1 join(select store, sum(amt)as rev, count(distinct saledate)as numdays, rev/numdays as avg_rev
+from trnsact
+where stype='P'
+group by store)as df2
+on df1.store=df2.store
+order by avg_rev desc
 
 
 
