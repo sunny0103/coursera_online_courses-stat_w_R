@@ -1,6 +1,6 @@
 
 
-week5
+week5 
 ==================================================================================================================================
 Exercise
 ==================================================================================================================================
@@ -163,6 +163,48 @@ group by store
 order by perc desc) as df join store_msa as msa
 on msa.store=df.store
 
+question 11
+* not sure whether it is rigt
+
+select df.store as store,sm.city as city, sm.state as state, df.change as change
+from(select top 1 rdf.store as store, 
+sum(case when rdf.mon=8 then rdf.numdays end) as aug_numdays,
+sum(case when rdf.mon=9 then rdf.numdays end) as sep_numdays,
+sum(case when rdf.mon=8 then rdf.rev end) as aug_rev,
+sum(case when rdf.mon=9 then rdf.rev end) as sep_rev,
+aug_rev/aug_numdays as y,
+sep_rev/sep_numdays as x,
+x-y as change
+from(select store, extract(month from saledate) as mon, extract(year from saledate) as yr,
+extract(year from saledate)||extract(month from saledate) as dym, count(distinct saledate) as numdays, 
+sum(amt) as rev
+from trnsact
+where stype='P'
+group by store, yr, mon
+having numdays>=20 and mon in(8,9))as rdf
+group by store
+having change IS NOT NULL
+order by change)as df join store_msa as sm
+on df.store=sm.store
+
+question 12
+ *mininum average revenue for each store
+select store,extract(year from saledate) as yr, extract(month from saledate) as mon,count(distinct saledate)as numdays,
+sum(amt) as rev, rev/numdays as avg_sale,rank() over(PARTITION BY store ORDER BY avg_sale) as avg_rank
+from trnsact 
+where stype='P'
+group by store,yr,mon
+having numdays>=20;
+
+select df.mon,count(distinct df.store)
+from(select store,extract(year from saledate) as yr, extract(month from saledate) as mon,count(distinct saledate)as numdays,
+sum(amt) as rev, rev/numdays as avg_sale,rank() over(PARTITION BY store ORDER BY avg_sale) as avg_rank
+from trnsact 
+where stype='P'
+group by store,yr,mon
+having numdays>=20)as df
+where df.avg_rank=1
+group by df.mon
 =========================================================================================================================
    quiz 
 =========================================================================================================================
@@ -172,7 +214,43 @@ from skuinfo
 where brand='polo fas' and (size='XXL' or color='black');
 
 question 3.
-select str.store, str.city, str.state,df.months,df.years
-from(select store, saledate, extract(month from saledate) as months, extract(year from saledate) as yearsfrom trnsact) as df join strinfo stron df.store=str.store
-GROUP BY str.city,str.state,str.store,df.months,df.years
-HAVING COUNT(DISTINCT df.saledate)=11;
+select df.store,sm.city,sm.state
+from(select store, extract(year from saledate)||extract(month from saledate) as dym, count(distinct saledate) as numdays 
+from trnsact
+where stype='P'
+group by store, dym
+having numdays=11)as df join store_msa as sm
+on df.store=sm.store
+
+question4.
+select top 1 df1.sku,(case when df1.yr=df2.yr then df2.rev-df1.rev end)diff
+from(select sku,extract(year from saledate)as yr, extract(month from saledate)as mon,sum(amt)as rev
+from trnsact
+where stype='P'
+group by sku,yr,mon
+having mon in (11))as df1 join(select sku,extract(year from saledate)as yr, extract(month from saledate)as mon,sum(amt)as rev
+from trnsact
+where stype='P'
+group by sku,yr,mon
+having mon in (12))as df2
+on df1.sku=df2.sku
+order by diff desc
+
+question5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
