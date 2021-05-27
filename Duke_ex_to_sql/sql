@@ -308,7 +308,68 @@ group by store)as df2
 on df1.store=df2.store
 order by avg_rev desc
 
+question 10.
+SELECT AVG(avg_sale) as avg_large
+FROM(SELECT df.store as store,sum(t.amt) as rev, count(distinct t.saledate) as numdays,rev/numdays as avg_sale
+FROM(SELECT store, 
+case when (msa_pop>=1 and msa_pop<=100000) then 'very_small'
+     when (msa_pop>=100001 and msa_pop<=200000) then 'small'
+     when (msa_pop>=200001 and msa_pop<=500000) then 'med_small'
+     when (msa_pop>=500001 and msa_pop<=1000000) then 'med_large'
+     when (msa_pop>=1000001 and msa_pop<=5000000) then 'large'
+     else 'very_large' end as pop_label
+FROM store_msa
+WHERE pop_label='very_large') as df join trnsact t
+ON df.store=t.store
+WHERE t.stype='P'
+GROUP BY df.store) as df2
 
+question 11
+SELECT df3.store, df3.deptdesc,sm.city,sm.state
+FROM(SELECT d.deptdesc,df2.store,df2.perc
+FROM(SELECT top 1 df.store,df.dept,
+       SUM(CASE WHEN df.mon=11 then df.numdays end)as nov_numdays,
+       SUM(CASE WHEN df.mon=12 then df.numdays end)as dec_numdays,
+       SUM(CASE WHEN df.mon=11 then df.rev end)as nov_rev,
+       SUM(CASE WHEN df.mon=12 then df.rev end)as dec_rev,
+       nov_rev/nov_numdays as y,
+       dec_rev/dec_numdays as x,
+       ((x-y)/y)*100 as perc
+FROM(SELECT t.store, su.dept, EXTRACT(year from t.saledate)as yr,EXTRACT(month from t.saledate)as mon,sum(t.amt)as rev,
+count(distinct t.saledate) as numdays
+FROM trnsact t JOIN skuinfo su
+ON t.sku=su.sku
+WHERE stype='P'
+GROUP BY t.store,su.dept,yr,mon
+HAVING numdays>=20 AND mon in (11,12))as df
+GROUP BY df.store,df.dept
+ORDER BY perc desc)as df2 JOIN deptinfo as d
+ON df2.dept=d.dept)as df3 JOIN store_msa as sm
+ON df3.store=sm.store
+
+question 12
+SELECT df3.store,df3.deptdesc,sm.city,sm.state
+FROM(SELECT df2.store,df2.dept,d.deptdesc
+FROM(SELECT top 1 df.store, df.dept,
+       SUM(CASE WHEN df.mon=8 then df.numdays end)as aug_numdays,
+       SUM(CASE WHEN df.mon=9 then df.numdays end)as sep_numdays,
+       SUM(CASE WHEN df.mon=8 then df.rev end)as aug_rev,
+       SUM(CASE WHEN df.mon=9 then df.rev end)as sep_rev,
+       aug_rev/aug_numdays as y,
+       sep_rev/sep_numdays as x,
+       x-y as change
+FROM(SELECT t.store, su.dept, EXTRACT(year from t.saledate)as yr,EXTRACT(month from t.saledate)as mon,sum(t.amt)as rev,
+count(distinct t.saledate) as numdays
+FROM trnsact t JOIN skuinfo su
+ON t.sku=su.sku
+WHERE stype='P'
+GROUP BY t.store,su.dept,yr,mon
+HAVING numdays>=20 AND mon in (8,9))as df 
+GROUP BY df.store,df.dept
+HAVING change is not null
+ORDER BY change)as df2 JOIN deptinfo as d
+ON df2.dept=d.dept)df3 JOIN store_msa as sm
+ON df3.store=sm.store
 
 
 
