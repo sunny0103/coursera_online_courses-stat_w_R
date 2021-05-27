@@ -209,7 +209,7 @@ group by df.mon
    quiz 
 =========================================================================================================================
 question 2.
-select brand ,size,color
+select count(distinct sku)
 from skuinfo
 where brand='polo fas' and (size='XXL' or color='black');
 
@@ -237,25 +237,23 @@ on df1.sku=df2.sku
 order by diff desc
 
 question5
-* might not right
-select df.sku, s.vendor
-from(select distinct sku
-from trnsact
-where sku not in (select distinct t.sku as sku
-from trnsact t join skstinfo sks
-on t.sku=sks.sku))as df join skuinfo as s
-on df.sku=s.sku
-order by df.sku desc
+SELECT su.vendor,COUNT(distinct t.sku)as num_sku
+FROM trnsact t LEFT JOIN skstinfo s 
+ON t.sku=s.sku AND t.store=s.store
+JOIN skuinfo su ON t.sku=su.sku
+WHERE s.sku IS NULL
+GROUP BY su.vendor
+ORDER BY num_sku desc
 
 question 6
-select df.sku as sku, df.std as std, sku.brand as brand
-from(select top 1 sku,stddev_samp(sprice) as std, count(distinct saledate) as numdays
-from trnsact
-where stype='P'
-group by sku
-having numdays>100
-order by std desc)as df join skuinfo sku
-on df.sku=sku.sku
+SELECT df.sku as sku, df.dev as dev,su.brand
+FROM(SELECT top 1 sku,STDDEV_POP(sprice) as dev,count(sprice)as numtrans
+FROM trnsact
+WHERE stype='P'
+GROUP BY sku
+HAVING numtrans>100
+ORDER BY dev desc)as df JOIN skuinfo as su
+ON df.sku=su.sku
 
 question 7 
 select cdf.store as store, sm.city,sm.state,cdf.change
@@ -295,18 +293,21 @@ on df.store=sm.store
 order by sm.msa_income ;
 
 question 9
-select df1.store as store,df2.avg_rev as avg_rev,df1.in_label
-from(select store, 
-case when (msa_income>=40001 and msa_income<=60000) then 'high'
-     when (msa_income>=30001 and msa_income<=40000) then 'med-high'
-     when (msa_income>=20001 and msa_income<=30000) then 'med-low'
-     when (msa_income>=1 and msa_income<=20000) then 'low' end as in_label
-from store_msa)as df1 join(select store, sum(amt)as rev, count(distinct saledate)as numdays, rev/numdays as avg_rev
-from trnsact
-where stype='P'
-group by store)as df2
-on df1.store=df2.store
-order by avg_rev desc
+SELECT SUM(df.rev)/SUM(numdays) as avg_group_rev,
+       CASE WHEN (sm.msa_income>=1 AND sm.msa_income<=20000)then 'low'
+            WHEN (sm.msa_income>=20001 AND sm.msa_income<=30000)then 'med-low'
+            WHEN (sm.msa_income>=30001 AND sm.msa_income<=40000)then 'med-high'
+            WHEN (sm.msa_income>=40001 AND sm.msa_income<=60000)then 'high' END as in_label
+FROM(SELECT store,EXTRACT(year from saledate) as yr, EXTRACT(month from saledate) as mon, SUM(amt)as rev,
+       COUNT(DISTINCT saledate)as numdays,
+       CASE WHEN EXTRACT(year from saledate)=2005 AND EXTRACT (month from saledate)=8 then 'exclude' END as ex_flag
+FROM trnsact
+WHERE stype='P' AND ex_flag IS NULL
+GROUP BY store,yr,mon
+HAVING numdays>=20)as df JOIN store_msa as sm
+ON df.store=sm.store
+GROUP BY in_label
+ORDER BY avg_group_rev desc
 
 question 10.
 SELECT AVG(avg_sale) as avg_large
@@ -371,7 +372,49 @@ ORDER BY change)as df2 JOIN deptinfo as d
 ON df2.dept=d.dept)df3 JOIN store_msa as sm
 ON df3.store=sm.store
 
+question 13
+SELECT df4.store as store, df4.deptdesc as deptdesc,sm.city as city,sm.state as state,df4.saleincrese
+FROM(SELECT df3.store,d.deptdesc,df3.saleincrese
+FROM(SELECT df2.store,su.dept,df2.saleincrese
+FROM(SELECT top 1 df.sku, df.store, 
+       SUM(CASE WHEN df.mon=8 then df.numsold END)as aug_numsold ,
+       SUM(CASE WHEN df.mon=9 then df.numsold END)as sep_numsold ,
+       sep_numsold-aug_numsold as saleincrese 
+FROM(SELECT sku,store, EXTRACT(year from saledate) as yr, EXTRACT(month from saledate) as mon, sum(quantity)as numsold,
+count(distinct saledate) as numdays
+FROM trnsact
+WHERE stype='P'
+GROUP BY sku,store, yr,mon
+HAVING numdays>=20 and mon in(8,9))as df
+GROUP BY df.sku,df.store
+HAVING saleincrese IS NOT NULL
+ORDER BY saleincrese)as df2 JOIN skuinfo as su
+ON df2.sku=su.sku)as df3 JOIN deptinfo as d
+ON df3.dept=d.dept)as df4 JOIN store_msa as sm
+ON df4.store=sm.store
 
+question 14.
+SELECT df.mon as mon,count(df.avg_rank)
+FROM(SELECT store,EXTRACT(year from saledate) as yr, EXTRACT(month from saledate) as mon, SUM(amt)as rev, 
+       COUNT(distinct saledate)as numdays,rev/numdays as avg_rev,RANK()over(PARTITION BY store ORDER BY avg_rev) as 
+       avg_rank
+FROM trnsact 
+WHERE stype='P'
+GROUP BY store, yr, mon)as df
+WHERE df.avg_rank=1
+GROUP BY df.mon
+
+question 15
+SELECT df.mon as mon,count(df.store) as numstore
+FROM(SELECT store,  
+       EXTRACT(year from saledate) as yr, EXTRACT(month from saledate) as mon,
+       sum(quantity)as q,
+       RANK()over(PARTITION BY store ORDER BY q desc) as numreturn
+FROM trnsact
+WHERE stype='R'
+GROUP BY store,yr,mon)as df
+WHERE numreturn=1
+GROUP BY mon
 
 
 
